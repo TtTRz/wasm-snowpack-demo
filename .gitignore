@@ -1,1 +1,6 @@
 /target
+/pkg
+/node_modules
+/build
+Cargo.lock
+package-lock.json
