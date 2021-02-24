@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::{Element, Event};
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -72,11 +73,17 @@ impl Global {
 
 struct Store {
     count: i32,
+    input_value: String,
+    input_value_elem: Vec<Rc<Element>>,
 }
 
 impl Store {
     fn new() -> Self {
-        Store { count: 0 }
+        Store {
+            count: 0,
+            input_value: "".to_string(),
+            input_value_elem: vec![],
+        }
     }
 
     pub fn get_instance() -> Rc<RefCell<Store>> {
@@ -98,9 +105,43 @@ pub fn test_dom() -> Result<(), JsValue> {
     element.set_attribute("id", "app")?;
     let body = document.body().unwrap();
     body.append_child(&element)?;
+    {
+        let span = document.create_element("span").unwrap();
+        let span = Rc::new(span);
+        let store = Store::get_instance();
+        span.set_inner_html(store.borrow().input_value.as_str());
+        store.borrow_mut().input_value_elem.push(Rc::clone(&span));
+        element.append_child(&span)?;
+    }
+
     let span = document.create_element("span").unwrap();
-    span.set_inner_html("hello");
+    let span = Rc::new(span);
+    let store = Store::get_instance();
+    span.set_inner_html(store.borrow().input_value.as_str());
+    store.borrow_mut().input_value_elem.push(Rc::clone(&span));
     element.append_child(&span)?;
+
+    {
+        let input_elem = document.create_element("input").unwrap();
+        let input_closure = Closure::wrap(Box::new(move |event: Event| {
+            if let Some(target) = event.target() {
+                if let Some(input_el) =
+                    wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(&target)
+                {
+                    let v = input_el.value();
+                    let title = v.trim();
+                    let store = Store::get_instance();
+                    store.borrow_mut().input_value = title.to_string();
+                    console_log!("here");
+                    update_text();
+                }
+            }
+        }) as Box<dyn FnMut(_)>);
+        input_elem
+            .add_event_listener_with_callback("input", input_closure.as_ref().unchecked_ref())?;
+        input_closure.forget();
+        element.append_child(&input_elem)?;
+    }
     {
         let button_elem = document.create_element("button").unwrap();
         button_elem.set_inner_html("change title");
@@ -138,6 +179,14 @@ pub fn test_dom() -> Result<(), JsValue> {
     }
     get_count();
     Ok(())
+}
+
+pub fn update_text() {
+    let store = Store::get_instance();
+    let value = &store.borrow().input_value.clone();
+    store.borrow_mut().input_value_elem.iter().for_each(|x| {
+        x.set_inner_html(value);
+    });
 }
 
 pub fn get_count() {
