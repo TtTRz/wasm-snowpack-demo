@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 wasm-bindgen = "*"
 log = "0.4.0"
 env_logger = "0.8.3"
+lazy_static = "*"
 
 [dependencies.web-sys]
 versuib = "0.3.4"

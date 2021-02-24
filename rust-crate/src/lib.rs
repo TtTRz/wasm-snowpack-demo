@@ -1,6 +1,7 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -42,10 +43,57 @@ pub fn del_element(query_selector: String) -> Result<(), JsValue> {
     Ok(())
 }
 
+struct Global {
+    pub document: Rc<web_sys::Document>,
+    pub window: Rc<web_sys::Window>,
+    pub count: i32,
+}
+
+impl Global {
+    fn new() -> Self {
+        let window = Rc::new(web_sys::window().unwrap());
+        let document = Rc::new(window.document().unwrap());
+        Global {
+            window,
+            document,
+            count: 0,
+        }
+    }
+
+    pub fn get_instance() -> Rc<RefCell<Global>> {
+        static mut GLOBAL: Option<Rc<RefCell<Global>>> = None;
+        unsafe {
+            GLOBAL
+                .get_or_insert_with(|| Rc::new(RefCell::new(Global::new())))
+                .clone()
+        }
+    }
+}
+
+struct Store {
+    count: i32,
+}
+
+impl Store {
+    fn new() -> Self {
+        Store { count: 0 }
+    }
+
+    pub fn get_instance() -> Rc<RefCell<Store>> {
+        static mut STORE: Option<Rc<RefCell<Store>>> = None;
+        unsafe {
+            STORE
+                .get_or_insert_with(|| Rc::new(RefCell::new(Store::new())))
+                .clone()
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub fn test_dom() -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-    let document = window.document().unwrap();
+    let global = Global::get_instance();
+    // let window = global.borrow_mut().window.clone();
+    let document = global.borrow_mut().document.clone();
     let element = document.create_element("div").unwrap();
     element.set_attribute("id", "app")?;
     let body = document.body().unwrap();
@@ -53,17 +101,54 @@ pub fn test_dom() -> Result<(), JsValue> {
     let span = document.create_element("span").unwrap();
     span.set_inner_html("hello");
     element.append_child(&span)?;
-
-    let button_elem = document.create_element("button").unwrap();
-    button_elem.set_inner_html("change title");
-    let click_closure = Closure::wrap(Box::new(move || {
-        span.set_inner_html("rom");
-    }) as Box<dyn FnMut()>);
-    button_elem
-        .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
-    click_closure.forget();
-    element.append_child(&button_elem)?;
+    {
+        let button_elem = document.create_element("button").unwrap();
+        button_elem.set_inner_html("change title");
+        let click_closure = Closure::wrap(Box::new(move || {
+            span.set_inner_html("rom");
+        }) as Box<dyn FnMut()>);
+        button_elem
+            .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+        click_closure.forget();
+        element.append_child(&button_elem)?;
+    }
+    {
+        let add_btn_elem = document.create_element("button").unwrap();
+        add_btn_elem.set_inner_html("+1");
+        let click_closure = Closure::wrap(Box::new(move || {
+            add_count(1);
+            get_count();
+        }) as Box<dyn FnMut()>);
+        add_btn_elem
+            .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+        click_closure.forget();
+        element.append_child(&add_btn_elem)?;
+    }
+    {
+        let add_btn_elem = document.create_element("button").unwrap();
+        add_btn_elem.set_inner_html("+2");
+        let click_closure = Closure::wrap(Box::new(move || {
+            add_count(2);
+            get_count();
+        }) as Box<dyn FnMut()>);
+        add_btn_elem
+            .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+        click_closure.forget();
+        element.append_child(&add_btn_elem)?;
+    }
+    get_count();
     Ok(())
+}
+
+pub fn get_count() {
+    let store = Store::get_instance();
+    let count = store.borrow().count;
+    console_log!("{}", count);
+}
+
+pub fn add_count(x: i32) {
+    let store = Store::get_instance();
+    store.borrow_mut().count += x;
 }
 
 #[wasm_bindgen(start)]
