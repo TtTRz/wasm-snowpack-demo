@@ -59,7 +59,8 @@ pub fn test_dom() -> Result<(), JsValue> {
     let click_closure = Closure::wrap(Box::new(move || {
         span.set_inner_html("rom");
     }) as Box<dyn FnMut()>);
-    button_elem.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+    button_elem
+        .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
     click_closure.forget();
     element.append_child(&button_elem)?;
     Ok(())

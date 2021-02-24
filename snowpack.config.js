@@ -5,13 +5,13 @@
 module.exports = {
   mount: {
     "public": {url: "/", static: true},
-    "web": {url: "/web"},
+    "src": {url: "/src"},
   },
   plugins: [
     [
       "snowpack-plugin-wasm-pack",
       {
-        projectPath: './'
+        projectPath: './rust-crate'
       }
     ]
   ],

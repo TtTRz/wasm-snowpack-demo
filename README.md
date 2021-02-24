@@ -1,3 +1,3 @@
 # Wasm Template
 
-**Template for Wasm, Snowpack**
+**Template for Wasm, Snowpack** 

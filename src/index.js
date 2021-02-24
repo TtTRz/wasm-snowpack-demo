@@ -1,4 +1,4 @@
-import init, {create_element, del_element, test_dom} from '../pkg';
+import init, {create_element, del_element, test_dom} from '../rust-crate/pkg';
 
 const start = async () => {
   await init();
