@@ -74,7 +74,7 @@ impl Global {
 struct Store {
     count: i32,
     input_value: String,
-    input_value_elem: Vec<Rc<Element>>,
+    input_value_elem: Option<Vec<Rc<Element>>>,
 }
 
 impl Store {
@@ -82,7 +82,7 @@ impl Store {
         Store {
             count: 0,
             input_value: "".to_string(),
-            input_value_elem: vec![],
+            input_value_elem: None,
         }
     }
 
@@ -92,6 +92,14 @@ impl Store {
             STORE
                 .get_or_insert_with(|| Rc::new(RefCell::new(Store::new())))
                 .clone()
+        }
+    }
+
+    pub fn push_input_value_elem(&mut self, elem: Rc<Element>) {
+        if self.input_value_elem.is_none() {
+            self.input_value_elem = Some(vec![elem]);
+        } else {
+            self.input_value_elem.as_mut().unwrap().push(elem);
         }
     }
 }
@@ -110,7 +118,15 @@ pub fn test_dom() -> Result<(), JsValue> {
         let span = Rc::new(span);
         let store = Store::get_instance();
         span.set_inner_html(store.borrow().input_value.as_str());
-        store.borrow_mut().input_value_elem.push(Rc::clone(&span));
+        if store.borrow_mut().input_value_elem.is_none() {
+            store.borrow_mut().input_value_elem = Some(vec![]);
+        }
+        store
+            .borrow_mut()
+            .input_value_elem
+            .as_mut()
+            .unwrap()
+            .push(Rc::clone(&span));
         element.append_child(&span)?;
     }
 
@@ -118,9 +134,8 @@ pub fn test_dom() -> Result<(), JsValue> {
     let span = Rc::new(span);
     let store = Store::get_instance();
     span.set_inner_html(store.borrow().input_value.as_str());
-    store.borrow_mut().input_value_elem.push(Rc::clone(&span));
+    store.borrow_mut().push_input_value_elem(Rc::clone(&span));
     element.append_child(&span)?;
-
     {
         let input_elem = document.create_element("input").unwrap();
         let input_closure = Closure::wrap(Box::new(move |event: Event| {
@@ -184,9 +199,15 @@ pub fn test_dom() -> Result<(), JsValue> {
 pub fn update_text() {
     let store = Store::get_instance();
     let value = &store.borrow().input_value.clone();
-    store.borrow_mut().input_value_elem.iter().for_each(|x| {
-        x.set_inner_html(value);
-    });
+    store
+        .borrow_mut()
+        .input_value_elem
+        .as_mut()
+        .unwrap()
+        .iter()
+        .for_each(|x| {
+            x.set_inner_html(value);
+        });
 }
 
 pub fn get_count() {
